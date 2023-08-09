@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DSPtoVCXPROJ": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\CyberBotX\\Documents\\Git\\exodus\\exodus\\exodusii.dsp"
+    }
+  }
+}
