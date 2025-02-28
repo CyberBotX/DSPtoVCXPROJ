@@ -18,7 +18,7 @@ class ClCompile : CompileBase
 
 	// Order is based on how Visual Studio 2022 has them in its properties window
 	public bool? ExcludedFromBuild { get; set; }
-	public HashSet<string> AdditionalIncludeDirectories { get; } = new();
+	public HashSet<string> AdditionalIncludeDirectories { get; } = [];
 	public string? DebugInformationFormat { get; set; }
 	public bool? SuppressStartupBanner { get; set; }
 	public string? WarningLevel { get; set; }
@@ -29,8 +29,8 @@ class ClCompile : CompileBase
 	public string? FavorSizeOrSpeed { get; set; }
 	public bool? OmitFramePointers { get; set; }
 	public bool? EnableFiberSafeOptimizations { get; set; }
-	public HashSet<string> PreprocessorDefinitions { get; } = new();
-	public HashSet<string> UndefinePreprocessorDefinitions { get; } = new();
+	public HashSet<string> PreprocessorDefinitions { get; } = [];
+	public HashSet<string> UndefinePreprocessorDefinitions { get; } = [];
 	public bool? UndefineAllPreprocessorDefinitions { get; set; }
 	public bool? IgnoreStandardIncludePath { get; set; }
 	public bool? PreprocessToFile { get; set; }
@@ -55,9 +55,9 @@ class ClCompile : CompileBase
 	public string? BrowseInformationFile { get; set; }
 	public string? CallingConvention { get; set; }
 	public string? CompileAs { get; set; }
-	public HashSet<string> ForcedIncludeFiles { get; } = new();
+	public HashSet<string> ForcedIncludeFiles { get; } = [];
 	public bool? OmitDefaultLibName { get; set; }
-	public HashSet<string> AdditionalOptions { get; } = new();
+	public HashSet<string> AdditionalOptions { get; } = [];
 
 	public override XElement GetBlock()
 	{

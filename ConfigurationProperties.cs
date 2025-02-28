@@ -5,11 +5,9 @@ namespace DSPtoVCXPROJ;
 /// <summary>
 /// The configuration properties of a project, the condition is usually a comparison against Configuration and Platform.
 /// </summary>
-class ConfigurationProperties
+class ConfigurationProperties(string condition)
 {
-	public string Condition { get; }
-
-	public ConfigurationProperties(string condition) => this.Condition = condition;
+	public string Condition { get; } = condition;
 
 	public bool? UseDebugLibraries { get; set; }
 	public string? UseOfMfc { get; set; }

@@ -7,8 +7,8 @@ namespace DSPtoVCXPROJ;
 /// </summary>
 class Link : None
 {
-	internal static readonly HashSet<string> InheritedAdditionalDependencies = new()
-	{
+	internal static readonly HashSet<string> InheritedAdditionalDependencies =
+	[
 		"kernel32.lib",
 		"user32.lib",
 		"gdi32.lib",
@@ -21,7 +21,7 @@ class Link : None
 		"uuid.lib",
 		"odbc32.lib",
 		"odbccp32.lib"
-	};
+	];
 
 	// Order is based on how Visual Studio 2022 has them in its properties window
 	public string? OutputFile { get; set; }
@@ -29,15 +29,15 @@ class Link : None
 	public string? Version { get; set; }
 	public bool? LinkIncremental { get; set; }
 	public bool? SuppressStartupBanner { get; set; }
-	public HashSet<string> AdditionalLibraryDirectories { get; } = new();
+	public HashSet<string> AdditionalLibraryDirectories { get; } = [];
 	public string? ForceFileOutput { get; set; }
 	public string? SpecifySectionAttributes { get; set; }
-	public HashSet<string> AdditionalDependencies { get; } = new();
+	public HashSet<string> AdditionalDependencies { get; } = [];
 	public bool? IgnoreAllDefaultLibraries { get; set; }
-	public HashSet<string> IgnoreSpecificDefaultLibraries { get; } = new();
+	public HashSet<string> IgnoreSpecificDefaultLibraries { get; } = [];
 	public string? ModuleDefinitionFile { get; set; }
-	public HashSet<string> ForceSymbolReferences { get; } = new();
-	public HashSet<string> DelayLoadDLLs { get; } = new();
+	public HashSet<string> ForceSymbolReferences { get; } = [];
+	public HashSet<string> DelayLoadDLLs { get; } = [];
 	public bool? GenerateDebugInformation { get; set; }
 	public string? ProgramDatabaseFile { get; set; }
 	public bool? GenerateMapFile { get; set; }
@@ -69,7 +69,7 @@ class Link : None
 	public string? SectionAlignment { get; set; }
 	// This is the only option here that has no entry in the property pages but does have one in MSBuild
 	public string? MSDOSStubFileName { get; set; }
-	public HashSet<string> AdditionalOptions { get; } = new();
+	public HashSet<string> AdditionalOptions { get; } = [];
 
 	public override XElement GetBlock()
 	{

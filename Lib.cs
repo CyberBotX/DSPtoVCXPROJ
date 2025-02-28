@@ -9,20 +9,20 @@ class Lib : None
 {
 	// Order is based on how Visual Studio 2022 has them in its properties window
 	public string? OutputFile { get; set; }
-	public HashSet<string> AdditionalDependencies { get; } = new();
-	public HashSet<string> AdditionalLibraryDirectories { get; } = new();
+	public HashSet<string> AdditionalDependencies { get; } = [];
+	public HashSet<string> AdditionalLibraryDirectories { get; } = [];
 	public bool? SuppressStartupBanner { get; set; }
 	public string? ModuleDefinitionFile { get; set; }
 	public bool? IgnoreAllDefaultLibraries { get; set; }
-	public HashSet<string> IgnoreSpecificDefaultLibraries { get; } = new();
-	public HashSet<string> ExportNamedFunctions { get; } = new();
+	public HashSet<string> IgnoreSpecificDefaultLibraries { get; } = [];
+	public HashSet<string> ExportNamedFunctions { get; } = [];
 	public string? ForceSymbolReferences { get; set; }
 	public string? TargetMachine { get; set; }
 	public string? SubSystem { get; set; }
-	public HashSet<string> RemoveObjects { get; } = new();
+	public HashSet<string> RemoveObjects { get; } = [];
 	public bool? Verbose { get; set; }
 	public string? Name { get; set; }
-	public HashSet<string> AdditionalOptions { get; } = new();
+	public HashSet<string> AdditionalOptions { get; } = [];
 
 	public override XElement GetBlock()
 	{

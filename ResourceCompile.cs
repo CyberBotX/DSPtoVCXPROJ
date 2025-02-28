@@ -16,15 +16,15 @@ class ResourceCompile : CompileBase
 	}
 
 	// Order is based on how Visual Studio 2022 has them in its properties window
-	public HashSet<string> PreprocessorDefinitions { get; } = new();
-	public HashSet<string> UndefinePreprocessorDefinitions { get; } = new();
+	public HashSet<string> PreprocessorDefinitions { get; } = [];
+	public HashSet<string> UndefinePreprocessorDefinitions { get; } = [];
 	public string? Culture { get; set; }
-	public HashSet<string> AdditionalIncludeDirectories { get; } = new();
+	public HashSet<string> AdditionalIncludeDirectories { get; } = [];
 	public bool? IgnoreStandardIncludePath { get; set; }
 	public bool? ShowProgress { get; set; }
 	public string? ResourceOutputFileName { get; set; }
 	public bool? NullTerminateStrings { get; set; }
-	public HashSet<string> AdditionalOptions { get; } = new();
+	public HashSet<string> AdditionalOptions { get; } = [];
 
 	public override XElement GetBlock()
 	{

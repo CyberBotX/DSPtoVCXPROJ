@@ -5,12 +5,8 @@ namespace DSPtoVCXPROJ;
 /// <summary>
 /// The <see cref="Text" /> block is typically only used on Text files, such as .txt files.
 /// </summary>
-class Text : None
+class Text(string? include = null) : None(include)
 {
-	public Text(string? include = null) : base(include)
-	{
-	}
-
 	public override XElement GetBlock()
 	{
 		var block = base.GetBlock();

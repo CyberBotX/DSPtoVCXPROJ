@@ -16,9 +16,6 @@ namespace DSPtoVCXPROJ;
 // While it is possible it might not be correct, MTL sections are also ignored, if only because modern Visual Studio doesn't have a good
 //   way to handle the MIDL arguments.
 
-// NOTE: Some parts of this could be made a little more efficient when .NET 8 comes out, as it offers an extension for ReadOnlySpan<T> to
-//   split by a delimiter, so using string.Split can be avoided to avoid the extra allocations.
-
 static class Program
 {
 	/// <summary>
@@ -71,7 +68,8 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static Exception ThrowInvalid(string name, string label, ReadOnlySpan<char> value, int lineNumber, string? valueName = null) =>
+	static Exception ThrowInvalid(ReadOnlySpan<char> name, ReadOnlySpan<char> label, ReadOnlySpan<char> value, int lineNumber,
+		string? valueName = null) =>
 		throw new ArgumentException($"Invalid {name}{(valueName is null ? "" : $" {valueName}")} {label} [{value}] - Line {lineNumber}");
 	/// <summary>
 	/// Throws an <see cref="ArgumentException" /> with the given data for an invalid value.
@@ -87,7 +85,8 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static T ThrowInvalid<T>(string name, string label, ReadOnlySpan<char> value, int lineNumber, string? valueName = null) =>
+	static T ThrowInvalid<T>(ReadOnlySpan<char> name, ReadOnlySpan<char> label, ReadOnlySpan<char> value, int lineNumber,
+		string? valueName = null) =>
 		throw new ArgumentException($"Invalid {name}{(valueName is null ? "" : $" {valueName}")} {label} [{value}] - Line {lineNumber}");
 
 	/// <summary>
@@ -101,7 +100,7 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static Exception ThrowInvalidArgument(string name, ReadOnlySpan<char> argument, int lineNumber) =>
+	static Exception ThrowInvalidArgument(ReadOnlySpan<char> name, ReadOnlySpan<char> argument, int lineNumber) =>
 		Program.ThrowInvalid(name, "argument", argument, lineNumber);
 	/// <summary>
 	/// Throws an <see cref="ArgumentException" /> with the given data for an invalid argument.
@@ -115,7 +114,7 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static T ThrowInvalidArgument<T>(string name, ReadOnlySpan<char> argument, int lineNumber) =>
+	static T ThrowInvalidArgument<T>(ReadOnlySpan<char> name, ReadOnlySpan<char> argument, int lineNumber) =>
 		Program.ThrowInvalid<T>(name, "argument", argument, lineNumber);
 
 	/// <summary>
@@ -130,7 +129,7 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static Exception ThrowInvalidFlag(string name, ReadOnlySpan<char> flag, int lineNumber, string? flagName = null) =>
+	static Exception ThrowInvalidFlag(ReadOnlySpan<char> name, ReadOnlySpan<char> flag, int lineNumber, string? flagName = null) =>
 		Program.ThrowInvalid(name, "flag", flag, lineNumber, flagName);
 	/// <summary>
 	/// Throws an <see cref="ArgumentException" /> with the given data for an invalid flag.
@@ -145,7 +144,7 @@ static class Program
 	/// after this call, despite the <see cref="DoesNotReturnAttribute" />.
 	/// </returns>
 	[DoesNotReturn]
-	static T ThrowInvalidFlag<T>(string name, ReadOnlySpan<char> flag, int lineNumber, string? flagName = null) =>
+	static T ThrowInvalidFlag<T>(ReadOnlySpan<char> name, ReadOnlySpan<char> flag, int lineNumber, string? flagName = null) =>
 		Program.ThrowInvalid<T>(name, "flag", flag, lineNumber, flagName);
 
 	/// <summary>
@@ -257,27 +256,30 @@ static class Program
 	internal static XElement CreateElement(string name, params object[] elements) => new(Program.NS + name, elements);
 
 	static string rootNamespace = null!;
-	static readonly ProjectConfigurations projectConfigurations = new();
+	static readonly ProjectConfigurations projectConfigurations = [];
 	static ProjectConfiguration? currentConfig = null;
-	static readonly List<Filter> filters = new();
+	static readonly List<Filter> filters = [];
 	static Filter? currentFilter = null;
 	static readonly MultipleClCompile multipleClCompile = new();
 	static readonly MultipleResourceCompile multipleResourceCompile = new();
-	static readonly List<SourceFile> files = new();
+	static readonly List<SourceFile> files = [];
 	static SourceFile? currentFile = null;
 
 	/// <summary>
 	/// Process a line containing a property.
 	/// </summary>
-	/// <param name="line">The contents of the line.</param>
+	/// <param name="props">The contents of the line.</param>
 	/// <param name="lineNumber">The line number of the line.</param>
-	static void ProcessProps(string line, int lineNumber)
+	static void ProcessProps(ReadOnlySpan<char> props, int lineNumber)
 	{
-		string[] props = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-		switch (props[2])
+		int spaces = props.Count(' ');
+		Span<Range> ranges = stackalloc Range[spaces + 1];
+		_ = props.Split(ranges, ' ', StringSplitOptions.RemoveEmptyEntries);
+		var props3 = props[ranges[3]];
+		switch (props[ranges[2]])
 		{
 			case "Use_MFC":
-				switch (int.Parse(props[3], CultureInfo.InvariantCulture))
+				switch (int.Parse(props3, CultureInfo.InvariantCulture))
 				{
 					case 0:
 						break; // Ignored because this is the default
@@ -288,11 +290,11 @@ static class Program
 						Program.currentConfig!.Properties.UseOfMfc = "Dynamic";
 						break;
 					default:
-						throw Program.ThrowInvalidArgument("Use_MFC", props[3], lineNumber);
+						throw Program.ThrowInvalidArgument("Use_MFC", props3, lineNumber);
 				}
 				break;
 			case "Use_Debug_Libraries":
-				switch (int.Parse(props[3], CultureInfo.InvariantCulture))
+				switch (int.Parse(props3, CultureInfo.InvariantCulture))
 				{
 					case 0:
 						break; // Ignored because this is the default
@@ -300,29 +302,29 @@ static class Program
 						Program.currentConfig!.Properties.UseDebugLibraries = true;
 						break;
 					default:
-						throw Program.ThrowInvalidArgument("Use_Debug_Libraries", props[3], lineNumber);
+						throw Program.ThrowInvalidArgument("Use_Debug_Libraries", props3, lineNumber);
 				}
 				break;
 			case "Output_Dir":
-				Program.currentConfig!.Properties.OutDir = props[3].Trim('"');
+				Program.currentConfig!.Properties.OutDir = $"{props3.Trim('"')}";
 				break;
 			case "Intermediate_Dir":
-				Program.currentConfig!.Properties.IntDir = props[3].Trim('"');
+				Program.currentConfig!.Properties.IntDir = $"{props3.Trim('"')}";
 				break;
 			case "Default_Filter":
 				if (Program.currentFilter is not null)
 				{
-					string filter = props[3].Trim('"');
-					if (!string.IsNullOrWhiteSpace(filter))
-						Program.currentFilter.Extensions = filter;
+					var filter = props3.Trim('"');
+					if (filter.Length != 0)
+						Program.currentFilter.Extensions = $"{filter}";
 				}
 				break;
 			case "Exclude_From_Build":
-				Program.multipleClCompile.ExcludedFromBuild = int.Parse(props[3], CultureInfo.InvariantCulture) switch
+				Program.multipleClCompile.ExcludedFromBuild = int.Parse(props3, CultureInfo.InvariantCulture) switch
 				{
 					0 => false,
 					1 => true,
-					_ => Program.ThrowInvalidArgument<bool>("Exclude_From_Build", props[3], lineNumber)
+					_ => Program.ThrowInvalidArgument<bool>("Exclude_From_Build", props3, lineNumber)
 				};
 				break;
 		}
@@ -331,16 +333,18 @@ static class Program
 	/// <summary>
 	/// Process a line for the compiler.
 	/// </summary>
-	/// <param name="line">The contents of the line.</param>
+	/// <param name="cppFlags">The contents of the line.</param>
 	/// <param name="lineNumber">The line number of the line.</param>
-	static void ProcessCPP(string line, int lineNumber)
+	static void ProcessCPP(ReadOnlySpan<char> cppFlags, int lineNumber)
 	{
 		bool hadNoLogo = false;
-		string[] cppFlags = line[(line.Contains("BASE") ? 15 : 10)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-		int numCppFlags = cppFlags.Length;
+		cppFlags = cppFlags[(cppFlags.Contains("BASE", StringComparison.InvariantCulture) ? 15 : 10)..];
+		int spaces = cppFlags.Count(' ');
+		Span<Range> ranges = stackalloc Range[spaces + 1];
+		int numCppFlags = cppFlags.Split(ranges, ' ', StringSplitOptions.RemoveEmptyEntries);
 		for (int i = 0; i < numCppFlags; ++i)
 		{
-			var cppFlag = cppFlags[i].AsSpan();
+			var cppFlag = cppFlags[ranges[i]];
 			if (cppFlag[0] is '/' or '-')
 			{
 				cppFlag = cppFlag[1..];
@@ -352,7 +356,7 @@ static class Program
 					case var _ when cppFlag.StartsWith("D", StringComparison.InvariantCulture):
 					{
 						// Allowed to have a space between the flag and the argument
-						var define = (cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[++i]).Trim('"');
+						var define = (cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[ranges[++i]]).Trim('"');
 						switch (define)
 						{
 							case "_MBCS":
@@ -405,7 +409,7 @@ static class Program
 							case var _ when fFlag.StartsWith("a", StringComparison.InvariantCulture):
 							{
 								// Unsure if this will ever have a space after it or not
-								var location = (fFlag.Length > 1 ? fFlag[1..] : cppFlags[++i]).Trim('"');
+								var location = (fFlag.Length > 1 ? fFlag[1..] : cppFlags[ranges[++i]]).Trim('"');
 								// Ignoring if location was $(IntDir), as this is the default
 								if (location is not "$(IntDir)")
 									Program.multipleClCompile.AssemblerListingLocation = $"{location}";
@@ -423,7 +427,7 @@ static class Program
 							case var _ when fFlag.StartsWith("I", StringComparison.InvariantCulture):
 								// Allowed to have a space between the flag and the argument
 								Program.multipleClCompile.
-									ForcedIncludeFilesAdd($"{(fFlag.Length > 1 ? fFlag[2..] : cppFlags[++i]).Trim('"')}");
+									ForcedIncludeFilesAdd($"{(fFlag.Length > 1 ? fFlag[2..] : cppFlags[ranges[++i]]).Trim('"')}");
 								break;
 							case { Length: > 1 } when fFlag.StartsWith("o", StringComparison.InvariantCulture):
 							{
@@ -460,9 +464,9 @@ static class Program
 							case { Length: > 1 } when fFlag.StartsWith("m", StringComparison.InvariantCulture):
 							case { Length: 0 }: // Handles /F <num>
 							case { Length: > 0 } when int.TryParse(fFlag.Trim('"'), out _): // Handles /F<num>
-																							// For /F, allowed to have a space between the flag and the argument (but we 'trim' that space away)
+								// For /F, allowed to have a space between the flag and the argument (but we 'trim' that space away)
 								if (cppFlag.Length == 0)
-									Program.multipleClCompile.AdditionalOptionsAdd($"/F{cppFlags[++i].Trim('"')}");
+									Program.multipleClCompile.AdditionalOptionsAdd($"/F{cppFlags[ranges[++i]].Trim('"')}");
 								else
 									Program.multipleClCompile.AdditionalOptionsAdd($"{cppFlag}");
 								break;
@@ -524,7 +528,7 @@ static class Program
 					case var _ when cppFlag.StartsWith("I", StringComparison.InvariantCulture):
 						// Allowed to have a space between the flag and the argument
 						Program.multipleClCompile.
-							AdditionalIncludeDirectoriesAdd($"{(cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[++i]).Trim('"')}");
+							AdditionalIncludeDirectoriesAdd($"{(cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[ranges[++i]]).Trim('"')}");
 						break;
 					case { Length: > 1 } when cppFlag.StartsWith("M", StringComparison.InvariantCulture):
 						switch (cppFlag[1..])
@@ -613,17 +617,18 @@ static class Program
 					case { Length: 2 } when cppFlag.StartsWith("T", StringComparison.InvariantCulture):
 						Program.multipleClCompile.CompileAs = cppFlag[1] switch
 						{
-							'C' => "CompileAsC",
-							'P' => "CompileAsCpp",
-							// NOTE: Not handling c or p here, if they exist, it is probably an error,
-							// compiling a file as C or C++ is set individually on the file in the IDE
+							// NOTE: c or p SHOULD have a filename after them, but if they are encountered here,
+							// then most likely the capitalized version was actually intended; normally I'd consider
+							// this an error, as compiling a file as C or C++ is set individually on the file in the IDE
+							'C' or 'c' => "CompileAsC",
+							'P' or 'p' => "CompileAsCpp",
 							_ => Program.ThrowInvalidFlag<string>("cl.exe", cppFlag[1..], lineNumber, "/T")
 						};
 						break;
 					case var _ when cppFlag.StartsWith("U", StringComparison.InvariantCulture):
 						// Allowed to have a space between the flag and the argument
 						Program.multipleClCompile.
-							UndefinePreprocessorDefinitionsAdd($"{(cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[++i]).Trim('"')}");
+							UndefinePreprocessorDefinitionsAdd($"{(cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[ranges[++i]]).Trim('"')}");
 						break;
 					case "u":
 						Program.multipleClCompile.UndefineAllPreprocessorDefinitions = true;
@@ -631,7 +636,7 @@ static class Program
 					case var _ when cppFlag.StartsWith("W", StringComparison.InvariantCulture):
 					{
 						// Allowed to have a space between the flag and the argument
-						var level = cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[++i];
+						var level = cppFlag.Length > 1 ? cppFlag[1..] : cppFlags[ranges[++i]];
 						if (level.Length == 1 && char.IsNumber(level[0]))
 						{
 							// Ignoring /W1, as this is the default
@@ -725,7 +730,7 @@ static class Program
 					case "E" or "J" or "LD" or "LDd" or "link" or "vd0" or "vd1" or "vmb" or "vmg" or "vmm" or "vms" or "vmv":
 						Program.multipleClCompile.AdditionalOptionsAdd($"{cppFlag}");
 						if (cppFlag is "link")
-							Program.multipleClCompile.AdditionalOptionsAdd(cppFlags[++i]);
+							Program.multipleClCompile.AdditionalOptionsAdd($"{cppFlags[ranges[++i]]}");
 						break;
 					case "c":
 						break; // Ignoring as there is really no reason this would ever be in an IDE project file
@@ -754,390 +759,394 @@ static class Program
 	/// </summary>
 	/// <param name="line">The contents of the line.</param>
 	/// <param name="lineNumber">The line number of the line.</param>
-	static void ProcessLink(string line, int lineNumber)
+	static void ProcessLink(ReadOnlySpan<char> line, int lineNumber)
 	{
 		bool hadNoLogo = false;
-		foreach (string flag in line[(line.Contains("BASE") ? 18 : 13)..].Split(' ', StringSplitOptions.RemoveEmptyEntries))
-			if (!string.IsNullOrEmpty(flag))
+		line = line[(line.Contains("BASE", StringComparison.InvariantCulture) ? 18 : 13)..];
+		int spaces = line.Count(' ');
+		Span<Range> ranges = stackalloc Range[spaces + 1];
+		int numRanges = line.Split(ranges, ' ', StringSplitOptions.RemoveEmptyEntries);
+		foreach (var range in ranges[..numRanges])
+		{
+			var flag = line[range];
+			var linkFlag = flag;
+			if (linkFlag[0] is '/' or '-')
 			{
-				var linkFlag = flag.AsSpan();
-				if (linkFlag[0] is '/' or '-')
+				linkFlag = linkFlag[1..];
+				switch (linkFlag)
 				{
-					linkFlag = linkFlag[1..];
-					switch (linkFlag)
+					case { Length: > 6 } when linkFlag.StartsWith("align:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.SectionAlignment = $"{linkFlag[6..].Trim('"')}";
+						break;
+					case { Length: > 5 } when linkFlag.StartsWith("base:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.BaseAddress = $"{linkFlag[5..].Trim('"')}";
+						break;
+					case var _ when linkFlag.Equals("debug", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.GenerateDebugInformation = true;
+						break;
+					case { Length: > 4 } when linkFlag.StartsWith("def:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.ModuleDefinitionFile = $"{linkFlag[4..].Trim('"')}";
+						break;
+					case { Length: > 6 } when linkFlag.StartsWith("delay:", StringComparison.InvariantCultureIgnoreCase):
 					{
-						case { Length: > 6 } when linkFlag.StartsWith("align:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.SectionAlignment = $"{linkFlag[6..].Trim('"')}";
-							break;
-						case { Length: > 5 } when linkFlag.StartsWith("base:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.BaseAddress = $"{linkFlag[5..].Trim('"')}";
-							break;
-						case var _ when linkFlag.Equals("debug", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.GenerateDebugInformation = true;
-							break;
-						case { Length: > 4 } when linkFlag.StartsWith("def:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.ModuleDefinitionFile = $"{linkFlag[4..].Trim('"')}";
-							break;
-						case { Length: > 6 } when linkFlag.StartsWith("delay:", StringComparison.InvariantCultureIgnoreCase):
+						var delayFlag = linkFlag[6..];
+						switch (delayFlag)
 						{
-							var delayFlag = linkFlag[6..];
-							switch (delayFlag)
-							{
-								case var _ when delayFlag.Equals("nobind", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.SupportNobindOfDelayLoadedDLL = true;
-									break;
-								case var _ when delayFlag.Equals("unload", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.SupportUnloadOfDelayLoadedDLL = true;
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", delayFlag, lineNumber, "/delay:");
-							}
-							break;
+							case var _ when delayFlag.Equals("nobind", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.SupportNobindOfDelayLoadedDLL = true;
+								break;
+							case var _ when delayFlag.Equals("unload", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.SupportUnloadOfDelayLoadedDLL = true;
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", delayFlag, lineNumber, "/delay:");
 						}
-						case { Length: > 10 } when linkFlag.StartsWith("delayload:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Link.DelayLoadDLLs.Add($"{linkFlag[10..].Trim('"')}");
-							break;
-						case var _ when linkFlag.StartsWith("driver", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var driverFlag = linkFlag.Length > 6 ? linkFlag[6..] : new();
-							Program.currentConfig!.Properties.Link.Driver = driverFlag switch
-							{
-								{ Length: 0 } => "Driver",
-								var _ when driverFlag.Equals(":uponly", StringComparison.InvariantCultureIgnoreCase) => "UpOnly",
-								var _ when driverFlag.Equals(":wdm", StringComparison.InvariantCultureIgnoreCase) => "WDM",
-								_ => Program.ThrowInvalidFlag<string>("link.exe", driverFlag, lineNumber, "/driver")
-							};
-							break;
-						}
-						case { Length: > 6 } when linkFlag.StartsWith("entry:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.EntryPointSymbol = $"{linkFlag[6..].Trim('"')}";
-							break;
-						case var _ when linkFlag.StartsWith("fixed", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var fixedFlag = linkFlag.Length > 5 ? linkFlag[5..] : new();
-							Program.currentConfig!.Properties.Link.FixedBaseAddress = fixedFlag switch
-							{
-								{ Length: 0 } => true,
-								var _ when fixedFlag.Equals(":no", StringComparison.InvariantCultureIgnoreCase) => false,
-								_ => Program.ThrowInvalidFlag<bool>("link.exe", fixedFlag, lineNumber, "/fixed")
-							};
-							break;
-						}
-						case var _ when linkFlag.StartsWith("force", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var forceFlag = linkFlag.Length > 5 ? linkFlag[5..] : new();
-							Program.currentConfig!.Properties.Link.ForceFileOutput = forceFlag switch
-							{
-								{ Length: 0 } => "Enabled",
-								var _ when forceFlag.Equals(":multiple", StringComparison.InvariantCultureIgnoreCase) =>
-									"MultiplyDefinedSymbolOnly",
-								var _ when forceFlag.Equals(":unresolved", StringComparison.InvariantCultureIgnoreCase) =>
-									"UndefinedSymbolOnly",
-								_ => Program.ThrowInvalidFlag<string>("link.exe", forceFlag, lineNumber, "/force")
-							};
-							break;
-						}
-						case { Length: > 5 } when linkFlag.StartsWith("heap:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							// Maybe TODO: Check if the arguments are integers or not
-							var heapFlag = linkFlag[5..];
-							int comma = heapFlag.IndexOf(',');
-							Program.currentConfig!.Properties.Link.HeapReserveSize =
-								$"{(comma == -1 ? heapFlag : heapFlag[..comma]).Trim('"')}";
-							if (comma != -1)
-								Program.currentConfig!.Properties.Link.HeapCommitSize = $"{heapFlag[(comma + 1)..].Trim('"')}";
-							break;
-						}
-						case { Length: > 7 } when linkFlag.StartsWith("implib:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var library = linkFlag[7..].Trim('"');
-							// Ignoring if the library was $(OutDir)$(TargetName).lib, as this is the default
-							if (library is not "$(OutDir)$(TargetName).lib")
-								Program.currentConfig!.Properties.Link.ImportLibrary = $"{library}";
-							break;
-						}
-						case { Length: > 8 } when linkFlag.StartsWith("include:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Link.ForceSymbolReferences.Add($"{linkFlag[8..].Trim('"')}");
-							break;
-						case { Length: > 12 } when linkFlag.StartsWith("incremental:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var incrementalFlag = linkFlag[12..];
-							switch (incrementalFlag)
-							{
-								case var _ when incrementalFlag.Equals("yes", StringComparison.InvariantCultureIgnoreCase):
-									// Ignoring if UseDebugLibraries is set to true, as this is the default
-									if (Program.currentConfig!.Properties.UseDebugLibraries != true)
-										Program.currentConfig!.Properties.Link.LinkIncremental = true;
-									break;
-								case var _ when incrementalFlag.Equals("no", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.LinkIncremental = false;
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", incrementalFlag, lineNumber, "/incremental:");
-							}
-							break;
-						}
-						case var _ when linkFlag.Equals("largeaddressaware", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var laaFlag = linkFlag.Length > 17 ? linkFlag[17..] : new();
-							Program.currentConfig!.Properties.Link.LargeAddressAware = laaFlag switch
-							{
-								{ Length: 0 } => true,
-								var _ when laaFlag.Equals(":no", StringComparison.InvariantCultureIgnoreCase) => false,
-								_ => Program.ThrowInvalidFlag<bool>("link.exe", laaFlag, lineNumber, "/largeaddressaware")
-							};
-							break;
-						}
-						case { Length: > 8 } when linkFlag.StartsWith("libpath:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Link.AdditionalLibraryDirectories.Add($"{linkFlag[8..].Trim('"')}");
-							break;
-						case { Length: > 8 } when linkFlag.StartsWith("machine:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var machineFlag = linkFlag[8..];
-							switch (machineFlag)
-							{
-								case var _ when machineFlag.Equals("arm", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.TargetMachine = "MachineARM";
-									break;
-								case var _ when machineFlag.Equals("ix86", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("i386", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("x86", StringComparison.InvariantCultureIgnoreCase):
-									// This might be wrong to use for ix86
-									// i386 is here even though it isn't in the docs because the VS 6.0 IDE seems to set that
-									// x86 is here because I've encountered an edited (probably) project containing it
-									// Igorning if Platform is Win32, as this is the default
-									if (Program.currentConfig!.Platform != "Win32")
-										Program.currentConfig!.Properties.Link.TargetMachine = "MachineX86";
-									break;
-								case var _ when machineFlag.Equals("mips", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.TargetMachine = "MachineMIPS";
-									break;
-								case var _ when machineFlag.Equals("mips16", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.TargetMachine = "MachineMIPS16";
-									break;
-								case var _ when machineFlag.Equals("sh4", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.TargetMachine = "MachineSH4";
-									break;
-								case var _ when machineFlag.Equals("alpha", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("mipsr41xx", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("ppc", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("sh3", StringComparison.InvariantCultureIgnoreCase):
-									break; // Ignoring these flags as they no longer exists in VS 2015 and later
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", machineFlag, lineNumber, "/machine:");
-							}
-							break;
-						}
-						case var _ when linkFlag.StartsWith("map", StringComparison.InvariantCultureIgnoreCase):
-							if (linkFlag.Length > 8 && linkFlag.StartsWith("mapinfo:", StringComparison.InvariantCultureIgnoreCase))
-							{
-								var mapinfoFlag = linkFlag[8..];
-								switch (mapinfoFlag)
-								{
-									case var _ when mapinfoFlag.Equals("exports", StringComparison.InvariantCultureIgnoreCase):
-										Program.currentConfig!.Properties.Link.MapExports = true;
-										break;
-									case var _ when mapinfoFlag.Equals("fixups", StringComparison.InvariantCultureIgnoreCase):
-									case var _ when mapinfoFlag.Equals("lines", StringComparison.InvariantCultureIgnoreCase):
-										break; // Ignoring these flags as they no longer exists in VS 2015 and later
-									default:
-										throw Program.ThrowInvalidFlag("link.exe", mapinfoFlag, lineNumber, "/mapinfo:");
-								}
-							}
-							else
-							{
-								Program.currentConfig!.Properties.Link.GenerateMapFile = true;
-								if (linkFlag.Length > 3)
-									Program.currentConfig!.Properties.Link.MapFileName = linkFlag[3] == ':' ? $"{linkFlag[4..].Trim('"')}" :
-										Program.ThrowInvalidFlag<string>("link.exe", linkFlag[3..], lineNumber, "/map");
-							}
-							break;
-						case { Length: > 6 } when linkFlag.StartsWith("merge:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.MergeSections = $"{linkFlag[6..].Trim('"')}";
-							break;
-						case var _ when linkFlag.StartsWith("nodefaultlib", StringComparison.InvariantCultureIgnoreCase):
-							switch (linkFlag)
-							{
-								case { Length: 12 }:
-									Program.currentConfig!.Properties.Link.IgnoreAllDefaultLibraries = true;
-									break;
-								case { Length: > 13 } when linkFlag[12] == ':':
-									_ = Program.currentConfig!.Properties.Link.IgnoreSpecificDefaultLibraries.
-										Add($"{linkFlag[13..].Trim('"')}");
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", linkFlag[12..], lineNumber, "/nodefaultlib");
-							}
-							break;
-						case var _ when linkFlag.Equals("noentry", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.NoEntryPoint = true;
-							break;
-						case var _ when linkFlag.Equals("nologo", StringComparison.InvariantCultureIgnoreCase):
-							hadNoLogo = true;
-							break;
-						case { Length: > 4 } when linkFlag.StartsWith("opt:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var optFlag = linkFlag[4..];
-							switch (optFlag)
-							{
-								case var _ when optFlag.StartsWith("icf", StringComparison.InvariantCultureIgnoreCase):
-									switch (optFlag)
-									{
-										case { Length: 3 }:
-											Program.currentConfig!.Properties.Link.EnableCOMDATFolding = true;
-											break;
-										case { Length: > 3 } when optFlag[3] == ',':
-											_ = Program.currentConfig!.Properties.Link.AdditionalOptions.Add(flag.Replace(',', '='));
-											break;
-										default:
-											throw Program.ThrowInvalidFlag("link.exe", optFlag, lineNumber, "/opt:");
-									}
-									break;
-								case var _ when optFlag.Equals("noicf", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.EnableCOMDATFolding = false;
-									break;
-								case var _ when optFlag.Equals("noref", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.OptimizeReferences = false;
-									break;
-								case var _ when optFlag.Equals("ref", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.OptimizeReferences = true;
-									break;
-								case var _ when optFlag.Equals("nowin98", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when optFlag.Equals("win98", StringComparison.InvariantCultureIgnoreCase):
-									break; // Ignoring these flags as they no longer exists in VS 2015 and later
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", optFlag, lineNumber, "/opt:");
-							}
-							break;
-						}
-						case { Length: > 7 } when linkFlag.StartsWith("order:@", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.FunctionOrder = $"{linkFlag[7..].Trim('"')}";
-							break;
-						case { Length: > 4 } when linkFlag.StartsWith("out:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var filename = linkFlag[4..].Trim('"');
-							// Ignoring if the filename was $(OutDir)$(TargetName)$(TargetExt), as this is the default
-							if (filename is not "$(OutDir)$(TargetName)$(TargetExt)")
-								Program.currentConfig!.Properties.Link.OutputFile = $"{filename}";
-							break;
-						}
-						case { Length: > 4 } when linkFlag.StartsWith("pdb:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var filename = linkFlag[4..].Trim('"');
-							// Ignoring if the "filename" was none, as this no longer exists in VS 2015 and later
-							if (!filename.Equals("none", StringComparison.InvariantCultureIgnoreCase))
-							{
-								// Ignoring if the filename was $(OutDir)$(TargetName).pdb, as this is the default
-								if (filename is not "$(OutDir)$(TargetName).pdb")
-									Program.currentConfig!.Properties.Link.ProgramDatabaseFile = $"{filename}";
-							}
-							break;
-						}
-						case var _ when linkFlag.Equals("profile", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.Profile = true;
-							break;
-						case var _ when linkFlag.Equals("release", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.SetChecksum = true;
-							break;
-						case { Length: > 8 } when linkFlag.StartsWith("section:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.SpecifySectionAttributes = $"{linkFlag[8..].Trim('"')}";
-							break;
-						case { Length: > 6 } when linkFlag.StartsWith("stack:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							// Maybe TODO: Check if the arguments are integers or not
-							var stackFlag = linkFlag[6..];
-							int comma = stackFlag.IndexOf(',');
-							Program.currentConfig!.Properties.Link.StackReserveSize =
-								$"{(comma == -1 ? stackFlag : stackFlag[..comma]).Trim('"')}";
-							if (comma != -1)
-								Program.currentConfig!.Properties.Link.StackCommitSize = $"{stackFlag[(comma + 1)..].Trim('"')}";
-							break;
-						}
-						case { Length: > 5 } when linkFlag.StartsWith("stub:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.MSDOSStubFileName = $"{linkFlag[5..].Trim('"')}";
-							break;
-						case { Length: > 10 } when linkFlag.StartsWith("subsystem:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var subsystemFlag = linkFlag[10..];
-							int comma = subsystemFlag.IndexOf(',');
-							if (comma != -1)
-							{
-								subsystemFlag = subsystemFlag[..comma];
-								_ = subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) ?
-									Program.currentConfig!.Properties.Link.AdditionalOptions.Add(flag) :
-									throw Program.ThrowInvalidFlag("link.exe", subsystemFlag, lineNumber, "/subsystem:");
-							}
-							else
-								Program.currentConfig!.Properties.Link.SubSystem = subsystemFlag switch
-								{
-									var _ when subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) => "Console",
-									var _ when subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) => "Native",
-									var _ when subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) => "POSIX",
-									var _ when subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) => "Windows",
-									var _ when subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) =>
-										"WindowsCE",
-									_ => Program.ThrowInvalidFlag<string>("link.exe", subsystemFlag, lineNumber, "/subsystem:")
-								};
-							break;
-						}
-						case { Length: > 8 } when linkFlag.StartsWith("swaprun:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var swaprunFlag = linkFlag[8..];
-							switch (swaprunFlag)
-							{
-								case var _ when swaprunFlag.Equals("cd", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.SwapRunFromCD = true;
-									break;
-								case var _ when swaprunFlag.Equals("net", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Link.SwapRunFromNET = true;
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("link.exe", swaprunFlag, lineNumber, "/swaprun:");
-							}
-							break;
-						}
-						case var _ when linkFlag.StartsWith("verbose", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var verboseFlag = linkFlag.Length > 7 ? linkFlag[7..] : new();
-							Program.currentConfig!.Properties.Link.ShowProgress = verboseFlag switch
-							{
-								{ Length: 0 } => "LinkVerbose",
-								var _ when verboseFlag.Equals(":lib", StringComparison.InvariantCultureIgnoreCase) => "LinkVerboseLib",
-								_ => Program.ThrowInvalidFlag<string>("link.exe", verboseFlag, lineNumber, "/verbose")
-							};
-							break;
-						}
-						case { Length: > 8 } when linkFlag.StartsWith("version:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Link.Version = $"{linkFlag[8..].Trim('"')}";
-							break;
-						case { Length: > 11 } when linkFlag.StartsWith("defaultlib:", StringComparison.InvariantCultureIgnoreCase):
-						case { Length: > 7 } when linkFlag.StartsWith("export:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Link.AdditionalOptions.Add(flag);
-							break;
-						case var _ when linkFlag.Equals("dll", StringComparison.InvariantCultureIgnoreCase):
-							break; // Ignored as it isn't necessary, ConfigurationType much earlier is usually set to DynamicLibrary
-						case var _ when linkFlag.StartsWith("comment:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.StartsWith("debugtype:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.Equals("exetype:dynamic", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.StartsWith("gpsize:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.Equals("link50compat", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.StartsWith("pdbtype:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.Equals("vxd", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.StartsWith("warn:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.StartsWith("windowsce:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when linkFlag.Equals("ws:aggresive", StringComparison.InvariantCultureIgnoreCase):
-							break; // Ignored because they no longer exist in VS 2015 and later
-						default:
-							throw Program.ThrowInvalidFlag("link.exe", flag, lineNumber);
+						break;
 					}
+					case { Length: > 10 } when linkFlag.StartsWith("delayload:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Link.DelayLoadDLLs.Add($"{linkFlag[10..].Trim('"')}");
+						break;
+					case var _ when linkFlag.StartsWith("driver", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var driverFlag = linkFlag.Length > 6 ? linkFlag[6..] : new();
+						Program.currentConfig!.Properties.Link.Driver = driverFlag switch
+						{
+							{ Length: 0 } => "Driver",
+							var _ when driverFlag.Equals(":uponly", StringComparison.InvariantCultureIgnoreCase) => "UpOnly",
+							var _ when driverFlag.Equals(":wdm", StringComparison.InvariantCultureIgnoreCase) => "WDM",
+							_ => Program.ThrowInvalidFlag<string>("link.exe", driverFlag, lineNumber, "/driver")
+						};
+						break;
+					}
+					case { Length: > 6 } when linkFlag.StartsWith("entry:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.EntryPointSymbol = $"{linkFlag[6..].Trim('"')}";
+						break;
+					case var _ when linkFlag.StartsWith("fixed", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var fixedFlag = linkFlag.Length > 5 ? linkFlag[5..] : new();
+						Program.currentConfig!.Properties.Link.FixedBaseAddress = fixedFlag switch
+						{
+							{ Length: 0 } => true,
+							var _ when fixedFlag.Equals(":no", StringComparison.InvariantCultureIgnoreCase) => false,
+							_ => Program.ThrowInvalidFlag<bool>("link.exe", fixedFlag, lineNumber, "/fixed")
+						};
+						break;
+					}
+					case var _ when linkFlag.StartsWith("force", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var forceFlag = linkFlag.Length > 5 ? linkFlag[5..] : new();
+						Program.currentConfig!.Properties.Link.ForceFileOutput = forceFlag switch
+						{
+							{ Length: 0 } => "Enabled",
+							var _ when forceFlag.Equals(":multiple", StringComparison.InvariantCultureIgnoreCase) =>
+								"MultiplyDefinedSymbolOnly",
+							var _ when forceFlag.Equals(":unresolved", StringComparison.InvariantCultureIgnoreCase) =>
+								"UndefinedSymbolOnly",
+							_ => Program.ThrowInvalidFlag<string>("link.exe", forceFlag, lineNumber, "/force")
+						};
+						break;
+					}
+					case { Length: > 5 } when linkFlag.StartsWith("heap:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						// Maybe TODO: Check if the arguments are integers or not
+						var heapFlag = linkFlag[5..];
+						int comma = heapFlag.IndexOf(',');
+						Program.currentConfig!.Properties.Link.HeapReserveSize =
+							$"{(comma == -1 ? heapFlag : heapFlag[..comma]).Trim('"')}";
+						if (comma != -1)
+							Program.currentConfig!.Properties.Link.HeapCommitSize = $"{heapFlag[(comma + 1)..].Trim('"')}";
+						break;
+					}
+					case { Length: > 7 } when linkFlag.StartsWith("implib:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var library = linkFlag[7..].Trim('"');
+						// Ignoring if the library was $(OutDir)$(TargetName).lib, as this is the default
+						if (library is not "$(OutDir)$(TargetName).lib")
+							Program.currentConfig!.Properties.Link.ImportLibrary = $"{library}";
+						break;
+					}
+					case { Length: > 8 } when linkFlag.StartsWith("include:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Link.ForceSymbolReferences.Add($"{linkFlag[8..].Trim('"')}");
+						break;
+					case { Length: > 12 } when linkFlag.StartsWith("incremental:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var incrementalFlag = linkFlag[12..];
+						switch (incrementalFlag)
+						{
+							case var _ when incrementalFlag.Equals("yes", StringComparison.InvariantCultureIgnoreCase):
+								// Ignoring if UseDebugLibraries is set to true, as this is the default
+								if (Program.currentConfig!.Properties.UseDebugLibraries != true)
+									Program.currentConfig!.Properties.Link.LinkIncremental = true;
+								break;
+							case var _ when incrementalFlag.Equals("no", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.LinkIncremental = false;
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", incrementalFlag, lineNumber, "/incremental:");
+						}
+						break;
+					}
+					case var _ when linkFlag.Equals("largeaddressaware", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var laaFlag = linkFlag.Length > 17 ? linkFlag[17..] : new();
+						Program.currentConfig!.Properties.Link.LargeAddressAware = laaFlag switch
+						{
+							{ Length: 0 } => true,
+							var _ when laaFlag.Equals(":no", StringComparison.InvariantCultureIgnoreCase) => false,
+							_ => Program.ThrowInvalidFlag<bool>("link.exe", laaFlag, lineNumber, "/largeaddressaware")
+						};
+						break;
+					}
+					case { Length: > 8 } when linkFlag.StartsWith("libpath:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Link.AdditionalLibraryDirectories.Add($"{linkFlag[8..].Trim('"')}");
+						break;
+					case { Length: > 8 } when linkFlag.StartsWith("machine:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var machineFlag = linkFlag[8..];
+						switch (machineFlag)
+						{
+							case var _ when machineFlag.Equals("arm", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.TargetMachine = "MachineARM";
+								break;
+							case var _ when machineFlag.Equals("ix86", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("i386", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("x86", StringComparison.InvariantCultureIgnoreCase):
+								// This might be wrong to use for ix86
+								// i386 is here even though it isn't in the docs because the VS 6.0 IDE seems to set that
+								// x86 is here because I've encountered an edited (probably) project containing it
+								// Igorning if Platform is Win32, as this is the default
+								if (Program.currentConfig!.Platform != "Win32")
+									Program.currentConfig!.Properties.Link.TargetMachine = "MachineX86";
+								break;
+							case var _ when machineFlag.Equals("mips", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.TargetMachine = "MachineMIPS";
+								break;
+							case var _ when machineFlag.Equals("mips16", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.TargetMachine = "MachineMIPS16";
+								break;
+							case var _ when machineFlag.Equals("sh4", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.TargetMachine = "MachineSH4";
+								break;
+							case var _ when machineFlag.Equals("alpha", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("mipsr41xx", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("ppc", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("sh3", StringComparison.InvariantCultureIgnoreCase):
+								break; // Ignoring these flags as they no longer exists in VS 2015 and later
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", machineFlag, lineNumber, "/machine:");
+						}
+						break;
+					}
+					case var _ when linkFlag.StartsWith("map", StringComparison.InvariantCultureIgnoreCase):
+						if (linkFlag.Length > 8 && linkFlag.StartsWith("mapinfo:", StringComparison.InvariantCultureIgnoreCase))
+						{
+							var mapinfoFlag = linkFlag[8..];
+							switch (mapinfoFlag)
+							{
+								case var _ when mapinfoFlag.Equals("exports", StringComparison.InvariantCultureIgnoreCase):
+									Program.currentConfig!.Properties.Link.MapExports = true;
+									break;
+								case var _ when mapinfoFlag.Equals("fixups", StringComparison.InvariantCultureIgnoreCase):
+								case var _ when mapinfoFlag.Equals("lines", StringComparison.InvariantCultureIgnoreCase):
+									break; // Ignoring these flags as they no longer exists in VS 2015 and later
+								default:
+									throw Program.ThrowInvalidFlag("link.exe", mapinfoFlag, lineNumber, "/mapinfo:");
+							}
+						}
+						else
+						{
+							Program.currentConfig!.Properties.Link.GenerateMapFile = true;
+							if (linkFlag.Length > 3)
+								Program.currentConfig!.Properties.Link.MapFileName = linkFlag[3] == ':' ? $"{linkFlag[4..].Trim('"')}" :
+									Program.ThrowInvalidFlag<string>("link.exe", linkFlag[3..], lineNumber, "/map");
+						}
+						break;
+					case { Length: > 6 } when linkFlag.StartsWith("merge:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.MergeSections = $"{linkFlag[6..].Trim('"')}";
+						break;
+					case var _ when linkFlag.StartsWith("nodefaultlib", StringComparison.InvariantCultureIgnoreCase):
+						switch (linkFlag)
+						{
+							case { Length: 12 }:
+								Program.currentConfig!.Properties.Link.IgnoreAllDefaultLibraries = true;
+								break;
+							case { Length: > 13 } when linkFlag[12] == ':':
+								_ = Program.currentConfig!.Properties.Link.IgnoreSpecificDefaultLibraries.
+									Add($"{linkFlag[13..].Trim('"')}");
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", linkFlag[12..], lineNumber, "/nodefaultlib");
+						}
+						break;
+					case var _ when linkFlag.Equals("noentry", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.NoEntryPoint = true;
+						break;
+					case var _ when linkFlag.Equals("nologo", StringComparison.InvariantCultureIgnoreCase):
+						hadNoLogo = true;
+						break;
+					case { Length: > 4 } when linkFlag.StartsWith("opt:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var optFlag = linkFlag[4..];
+						switch (optFlag)
+						{
+							case var _ when optFlag.StartsWith("icf", StringComparison.InvariantCultureIgnoreCase):
+								switch (optFlag)
+								{
+									case { Length: 3 }:
+										Program.currentConfig!.Properties.Link.EnableCOMDATFolding = true;
+										break;
+									case { Length: > 3 } when optFlag[3] == ',':
+										_ = Program.currentConfig!.Properties.Link.AdditionalOptions.Add($"{flag}".Replace(',', '='));
+										break;
+									default:
+										throw Program.ThrowInvalidFlag("link.exe", optFlag, lineNumber, "/opt:");
+								}
+								break;
+							case var _ when optFlag.Equals("noicf", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.EnableCOMDATFolding = false;
+								break;
+							case var _ when optFlag.Equals("noref", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.OptimizeReferences = false;
+								break;
+							case var _ when optFlag.Equals("ref", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.OptimizeReferences = true;
+								break;
+							case var _ when optFlag.Equals("nowin98", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when optFlag.Equals("win98", StringComparison.InvariantCultureIgnoreCase):
+								break; // Ignoring these flags as they no longer exists in VS 2015 and later
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", optFlag, lineNumber, "/opt:");
+						}
+						break;
+					}
+					case { Length: > 7 } when linkFlag.StartsWith("order:@", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.FunctionOrder = $"{linkFlag[7..].Trim('"')}";
+						break;
+					case { Length: > 4 } when linkFlag.StartsWith("out:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var filename = linkFlag[4..].Trim('"');
+						// Ignoring if the filename was $(OutDir)$(TargetName)$(TargetExt), as this is the default
+						if (filename is not "$(OutDir)$(TargetName)$(TargetExt)")
+							Program.currentConfig!.Properties.Link.OutputFile = $"{filename}";
+						break;
+					}
+					case { Length: > 4 } when linkFlag.StartsWith("pdb:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var filename = linkFlag[4..].Trim('"');
+						// Ignoring if the "filename" was none, as this no longer exists in VS 2015 and later
+						if (!filename.Equals("none", StringComparison.InvariantCultureIgnoreCase))
+						{
+							// Ignoring if the filename was $(OutDir)$(TargetName).pdb, as this is the default
+							if (filename is not "$(OutDir)$(TargetName).pdb")
+								Program.currentConfig!.Properties.Link.ProgramDatabaseFile = $"{filename}";
+						}
+						break;
+					}
+					case var _ when linkFlag.Equals("profile", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.Profile = true;
+						break;
+					case var _ when linkFlag.Equals("release", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.SetChecksum = true;
+						break;
+					case { Length: > 8 } when linkFlag.StartsWith("section:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.SpecifySectionAttributes = $"{linkFlag[8..].Trim('"')}";
+						break;
+					case { Length: > 6 } when linkFlag.StartsWith("stack:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						// Maybe TODO: Check if the arguments are integers or not
+						var stackFlag = linkFlag[6..];
+						int comma = stackFlag.IndexOf(',');
+						Program.currentConfig!.Properties.Link.StackReserveSize =
+							$"{(comma == -1 ? stackFlag : stackFlag[..comma]).Trim('"')}";
+						if (comma != -1)
+							Program.currentConfig!.Properties.Link.StackCommitSize = $"{stackFlag[(comma + 1)..].Trim('"')}";
+						break;
+					}
+					case { Length: > 5 } when linkFlag.StartsWith("stub:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.MSDOSStubFileName = $"{linkFlag[5..].Trim('"')}";
+						break;
+					case { Length: > 10 } when linkFlag.StartsWith("subsystem:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var subsystemFlag = linkFlag[10..];
+						int comma = subsystemFlag.IndexOf(',');
+						if (comma != -1)
+						{
+							subsystemFlag = subsystemFlag[..comma];
+							_ = subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) ?
+								Program.currentConfig!.Properties.Link.AdditionalOptions.Add($"{flag}") :
+								throw Program.ThrowInvalidFlag("link.exe", subsystemFlag, lineNumber, "/subsystem:");
+						}
+						else
+							Program.currentConfig!.Properties.Link.SubSystem = subsystemFlag switch
+							{
+								var _ when subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) => "Console",
+								var _ when subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) => "Native",
+								var _ when subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) => "POSIX",
+								var _ when subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) => "Windows",
+								var _ when subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) =>
+									"WindowsCE",
+								_ => Program.ThrowInvalidFlag<string>("link.exe", subsystemFlag, lineNumber, "/subsystem:")
+							};
+						break;
+					}
+					case { Length: > 8 } when linkFlag.StartsWith("swaprun:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var swaprunFlag = linkFlag[8..];
+						switch (swaprunFlag)
+						{
+							case var _ when swaprunFlag.Equals("cd", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.SwapRunFromCD = true;
+								break;
+							case var _ when swaprunFlag.Equals("net", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Link.SwapRunFromNET = true;
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("link.exe", swaprunFlag, lineNumber, "/swaprun:");
+						}
+						break;
+					}
+					case var _ when linkFlag.StartsWith("verbose", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var verboseFlag = linkFlag.Length > 7 ? linkFlag[7..] : new();
+						Program.currentConfig!.Properties.Link.ShowProgress = verboseFlag switch
+						{
+							{ Length: 0 } => "LinkVerbose",
+							var _ when verboseFlag.Equals(":lib", StringComparison.InvariantCultureIgnoreCase) => "LinkVerboseLib",
+							_ => Program.ThrowInvalidFlag<string>("link.exe", verboseFlag, lineNumber, "/verbose")
+						};
+						break;
+					}
+					case { Length: > 8 } when linkFlag.StartsWith("version:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Link.Version = $"{linkFlag[8..].Trim('"')}";
+						break;
+					case { Length: > 11 } when linkFlag.StartsWith("defaultlib:", StringComparison.InvariantCultureIgnoreCase):
+					case { Length: > 7 } when linkFlag.StartsWith("export:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Link.AdditionalOptions.Add($"{flag}");
+						break;
+					case var _ when linkFlag.Equals("dll", StringComparison.InvariantCultureIgnoreCase):
+						break; // Ignored as it isn't necessary, ConfigurationType much earlier is usually set to DynamicLibrary
+					case var _ when linkFlag.StartsWith("comment:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.StartsWith("debugtype:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.Equals("exetype:dynamic", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.StartsWith("gpsize:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.Equals("link50compat", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.StartsWith("pdbtype:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.Equals("vxd", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.StartsWith("warn:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.StartsWith("windowsce:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when linkFlag.Equals("ws:aggresive", StringComparison.InvariantCultureIgnoreCase):
+						break; // Ignored because they no longer exist in VS 2015 and later
+					default:
+						throw Program.ThrowInvalidFlag("link.exe", flag, lineNumber);
 				}
-				else
-					_ = Program.currentConfig!.Properties.Link.AdditionalDependencies.Add(flag);
 			}
+			else
+				_ = Program.currentConfig!.Properties.Link.AdditionalDependencies.Add($"{flag}");
+		}
 		// This is being done like this because SuppressStartupBanner defaults to true
 		if (Program.currentFile is null && !hadNoLogo)
 			Program.currentConfig!.Properties.Link.SuppressStartupBanner = false;
@@ -1148,155 +1157,158 @@ static class Program
 	/// </summary>
 	/// <param name="line">The contents of the line.</param>
 	/// <param name="lineNumber">The line number of the line.</param>
-	static void ProcessLib(string line, int lineNumber)
+	static void ProcessLib(ReadOnlySpan<char> line, int lineNumber)
 	{
 		bool hadNoLogo = false;
-		foreach (string flag in line[(line.Contains("BASE") ? 17 : 12)..].Split(' ', StringSplitOptions.RemoveEmptyEntries))
-			if (!string.IsNullOrEmpty(flag))
+		line = line[(line.Contains("BASE", StringComparison.InvariantCulture) ? 17 : 12)..];
+		int spaces = line.Count(' ');
+		Span<Range> ranges = stackalloc Range[spaces + 1];
+		int numRanges = line.Split(ranges, ' ', StringSplitOptions.RemoveEmptyEntries);
+		foreach (var range in ranges[..numRanges])
+		{
+			var flag = line[range];
+			var librarianFlag = flag;
+			if (librarianFlag[0] is '/' or '-')
 			{
-				var librarianFlag = flag.AsSpan();
-				if (librarianFlag[0] is '/' or '-')
+				librarianFlag = librarianFlag[1..];
+				switch (librarianFlag)
 				{
-					librarianFlag = librarianFlag[1..];
-					switch (librarianFlag)
+					case var _ when librarianFlag.StartsWith("def", StringComparison.InvariantCultureIgnoreCase):
+						switch (librarianFlag)
+						{
+							case { Length: 3 }:
+								_ = Program.currentConfig!.Properties.Lib.AdditionalOptions.Add($"{flag}");
+								break;
+							case { Length: > 4 } when librarianFlag[3] == ':':
+								Program.currentConfig!.Properties.Lib.ModuleDefinitionFile = $"{librarianFlag[4..].Trim('"')}";
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("lib.exe", librarianFlag[3..], lineNumber, "/def");
+						}
+						break;
+					case { Length: > 7 } when librarianFlag.StartsWith("export:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Lib.ExportNamedFunctions.Add($"{librarianFlag[7..].Trim('"')}");
+						break;
+					case { Length: > 8 } when librarianFlag.StartsWith("include:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Lib.ForceSymbolReferences = $"{librarianFlag[8..].Trim('"')}";
+						break;
+					case { Length: > 8 } when librarianFlag.StartsWith("libpath:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Lib.AdditionalLibraryDirectories.Add($"{librarianFlag[8..].Trim('"')}");
+						break;
+					case { Length: > 8 } when librarianFlag.StartsWith("machine:", StringComparison.InvariantCultureIgnoreCase):
 					{
-						case var _ when librarianFlag.StartsWith("def", StringComparison.InvariantCultureIgnoreCase):
-							switch (librarianFlag)
-							{
-								case { Length: 3 }:
-									_ = Program.currentConfig!.Properties.Lib.AdditionalOptions.Add(flag);
-									break;
-								case { Length: > 4 } when librarianFlag[3] == ':':
-									Program.currentConfig!.Properties.Lib.ModuleDefinitionFile = $"{librarianFlag[4..].Trim('"')}";
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("lib.exe", librarianFlag[3..], lineNumber, "/def");
-							}
-							break;
-						case { Length: > 7 } when librarianFlag.StartsWith("export:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Lib.ExportNamedFunctions.Add($"{librarianFlag[7..].Trim('"')}");
-							break;
-						case { Length: > 8 } when librarianFlag.StartsWith("include:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Lib.ForceSymbolReferences = $"{librarianFlag[8..].Trim('"')}";
-							break;
-						case { Length: > 8 } when librarianFlag.StartsWith("libpath:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Lib.AdditionalLibraryDirectories.Add($"{librarianFlag[8..].Trim('"')}");
-							break;
-						case { Length: > 8 } when librarianFlag.StartsWith("machine:", StringComparison.InvariantCultureIgnoreCase):
+						var machineFlag = librarianFlag[8..];
+						switch (machineFlag)
 						{
-							var machineFlag = librarianFlag[8..];
-							switch (machineFlag)
-							{
-								case var _ when machineFlag.Equals("arm", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Lib.TargetMachine = "MachineARM";
-									break;
-								case var _ when machineFlag.Equals("ix86", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("i386", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("x86", StringComparison.InvariantCultureIgnoreCase):
-									// This might be wrong to use for ix86
-									// i386 is here even though it isn't in the docs because the VS 6.0 IDE seems to set that
-									// x86 is here because I've encountered an edited (probably) project containing it
-									// Ignoring if Platform is Win32, as this is the default
-									if (Program.currentConfig!.Platform != "Win32")
-										Program.currentConfig!.Properties.Lib.TargetMachine = "MachineX86";
-									break;
-								case var _ when machineFlag.Equals("mips", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Lib.TargetMachine = "MachineMIPS";
-									break;
-								case var _ when machineFlag.Equals("mips16", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Lib.TargetMachine = "MachineMIPS16";
-									break;
-								case var _ when machineFlag.Equals("sh4", StringComparison.InvariantCultureIgnoreCase):
-									Program.currentConfig!.Properties.Lib.TargetMachine = "MachineSH4";
-									break;
-								case var _ when machineFlag.Equals("alpha", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("mipsr41xx", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("ppc", StringComparison.InvariantCultureIgnoreCase):
-								case var _ when machineFlag.Equals("sh3", StringComparison.InvariantCultureIgnoreCase):
-									break; // Ignoring these flags as they no longer exists in VS 2015 and later
-								default:
-									throw Program.ThrowInvalidFlag("lib.exe", machineFlag, lineNumber, "/machine:");
-							}
-							break;
+							case var _ when machineFlag.Equals("arm", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Lib.TargetMachine = "MachineARM";
+								break;
+							case var _ when machineFlag.Equals("ix86", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("i386", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("x86", StringComparison.InvariantCultureIgnoreCase):
+								// This might be wrong to use for ix86
+								// i386 is here even though it isn't in the docs because the VS 6.0 IDE seems to set that
+								// x86 is here because I've encountered an edited (probably) project containing it
+								// Ignoring if Platform is Win32, as this is the default
+								if (Program.currentConfig!.Platform != "Win32")
+									Program.currentConfig!.Properties.Lib.TargetMachine = "MachineX86";
+								break;
+							case var _ when machineFlag.Equals("mips", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Lib.TargetMachine = "MachineMIPS";
+								break;
+							case var _ when machineFlag.Equals("mips16", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Lib.TargetMachine = "MachineMIPS16";
+								break;
+							case var _ when machineFlag.Equals("sh4", StringComparison.InvariantCultureIgnoreCase):
+								Program.currentConfig!.Properties.Lib.TargetMachine = "MachineSH4";
+								break;
+							case var _ when machineFlag.Equals("alpha", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("mipsr41xx", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("ppc", StringComparison.InvariantCultureIgnoreCase):
+							case var _ when machineFlag.Equals("sh3", StringComparison.InvariantCultureIgnoreCase):
+								break; // Ignoring these flags as they no longer exists in VS 2015 and later
+							default:
+								throw Program.ThrowInvalidFlag("lib.exe", machineFlag, lineNumber, "/machine:");
 						}
-						case { Length: > 5 } when librarianFlag.StartsWith("name:", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Lib.Name = $"{librarianFlag[5..].Trim('"')}";
-							break;
-						case var _ when librarianFlag.StartsWith("nodefaultlib", StringComparison.InvariantCultureIgnoreCase):
-							switch (librarianFlag)
-							{
-								case { Length: 12 }:
-									Program.currentConfig!.Properties.Lib.IgnoreAllDefaultLibraries = true;
-									break;
-								case { Length: > 13 } when librarianFlag[12] == ':':
-									_ = Program.currentConfig!.Properties.Lib.IgnoreSpecificDefaultLibraries.
-										Add($"{librarianFlag[13..].Trim('"')}");
-									break;
-								default:
-									throw Program.ThrowInvalidFlag("lib.exe", librarianFlag[12..], lineNumber, "/nodefaultlib");
-							}
-							break;
-						case var _ when librarianFlag.Equals("nologo", StringComparison.InvariantCultureIgnoreCase):
-							hadNoLogo = true;
-							break;
-						case { Length: > 4 } when librarianFlag.StartsWith("out:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var filename = librarianFlag[4..].Trim('"');
-							// Ignoring if the filename was $(OutDir)$(TargetName)$(TargetExt), as this is the default
-							if (filename is not "$(OutDir)$(TargetName)$(TargetExt)")
-								Program.currentConfig!.Properties.Lib.OutputFile = $"{filename}";
-							break;
-						}
-						case { Length: > 7 } when librarianFlag.StartsWith("remove:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Lib.RemoveObjects.Add($"{librarianFlag[7..].Trim('"')}");
-							break;
-						case { Length: > 10 } when librarianFlag.StartsWith("subsystem:", StringComparison.InvariantCultureIgnoreCase):
-						{
-							var subsystemFlag = librarianFlag[10..];
-							int comma = subsystemFlag.IndexOf(',');
-							if (comma != -1)
-							{
-								subsystemFlag = subsystemFlag[..comma];
-								_ = subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) ||
-									subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) ?
-									Program.currentConfig!.Properties.Lib.AdditionalOptions.Add(flag) :
-									throw Program.ThrowInvalidFlag("lib.exe", subsystemFlag, lineNumber, "/subsystem:");
-							}
-							else
-								Program.currentConfig!.Properties.Lib.SubSystem = subsystemFlag switch
-								{
-									var _ when subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) => "Console",
-									var _ when subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) => "Native",
-									var _ when subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) => "POSIX",
-									var _ when subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) => "Windows",
-									var _ when subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) =>
-										"WindowsCE",
-									_ => Program.ThrowInvalidFlag<string>("lib.exe", subsystemFlag, lineNumber, "/subsystem:")
-								};
-							break;
-						}
-						case var _ when librarianFlag.Equals("verbose", StringComparison.InvariantCultureIgnoreCase):
-							Program.currentConfig!.Properties.Lib.Verbose = true;
-							break;
-						case { Length: > 8 } when librarianFlag.StartsWith("extract:", StringComparison.InvariantCultureIgnoreCase):
-							_ = Program.currentConfig!.Properties.Lib.AdditionalOptions.Add(flag);
-							break;
-						case var _ when librarianFlag.StartsWith("list", StringComparison.InvariantCultureIgnoreCase):
-							break; // Ignoring as there is really no reason this would ever be in an IDE project file
-						case var _ when librarianFlag.Equals("convert", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when librarianFlag.StartsWith("debugtype:", StringComparison.InvariantCultureIgnoreCase):
-						case var _ when librarianFlag.Equals("link50compat", StringComparison.InvariantCultureIgnoreCase):
-							break; // Ignored because they no longer exist in VS 2015 and later
-						default:
-							throw Program.ThrowInvalidFlag("lib.exe", flag, lineNumber);
+						break;
 					}
+					case { Length: > 5 } when librarianFlag.StartsWith("name:", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Lib.Name = $"{librarianFlag[5..].Trim('"')}";
+						break;
+					case var _ when librarianFlag.StartsWith("nodefaultlib", StringComparison.InvariantCultureIgnoreCase):
+						switch (librarianFlag)
+						{
+							case { Length: 12 }:
+								Program.currentConfig!.Properties.Lib.IgnoreAllDefaultLibraries = true;
+								break;
+							case { Length: > 13 } when librarianFlag[12] == ':':
+								_ = Program.currentConfig!.Properties.Lib.IgnoreSpecificDefaultLibraries.
+									Add($"{librarianFlag[13..].Trim('"')}");
+								break;
+							default:
+								throw Program.ThrowInvalidFlag("lib.exe", librarianFlag[12..], lineNumber, "/nodefaultlib");
+						}
+						break;
+					case var _ when librarianFlag.Equals("nologo", StringComparison.InvariantCultureIgnoreCase):
+						hadNoLogo = true;
+						break;
+					case { Length: > 4 } when librarianFlag.StartsWith("out:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var filename = librarianFlag[4..].Trim('"');
+						// Ignoring if the filename was $(OutDir)$(TargetName)$(TargetExt), as this is the default
+						if (filename is not "$(OutDir)$(TargetName)$(TargetExt)")
+							Program.currentConfig!.Properties.Lib.OutputFile = $"{filename}";
+						break;
+					}
+					case { Length: > 7 } when librarianFlag.StartsWith("remove:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Lib.RemoveObjects.Add($"{librarianFlag[7..].Trim('"')}");
+						break;
+					case { Length: > 10 } when librarianFlag.StartsWith("subsystem:", StringComparison.InvariantCultureIgnoreCase):
+					{
+						var subsystemFlag = librarianFlag[10..];
+						int comma = subsystemFlag.IndexOf(',');
+						if (comma != -1)
+						{
+							subsystemFlag = subsystemFlag[..comma];
+							_ = subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) ||
+								subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) ?
+								Program.currentConfig!.Properties.Lib.AdditionalOptions.Add($"{flag}") :
+								throw Program.ThrowInvalidFlag("lib.exe", subsystemFlag, lineNumber, "/subsystem:");
+						}
+						else
+							Program.currentConfig!.Properties.Lib.SubSystem = subsystemFlag switch
+							{
+								var _ when subsystemFlag.Equals("console", StringComparison.InvariantCultureIgnoreCase) => "Console",
+								var _ when subsystemFlag.Equals("native", StringComparison.InvariantCultureIgnoreCase) => "Native",
+								var _ when subsystemFlag.Equals("posix", StringComparison.InvariantCultureIgnoreCase) => "POSIX",
+								var _ when subsystemFlag.Equals("windows", StringComparison.InvariantCultureIgnoreCase) => "Windows",
+								var _ when subsystemFlag.Equals("windowsce", StringComparison.InvariantCultureIgnoreCase) => "WindowsCE",
+								_ => Program.ThrowInvalidFlag<string>("lib.exe", subsystemFlag, lineNumber, "/subsystem:")
+							};
+						break;
+					}
+					case var _ when librarianFlag.Equals("verbose", StringComparison.InvariantCultureIgnoreCase):
+						Program.currentConfig!.Properties.Lib.Verbose = true;
+						break;
+					case { Length: > 8 } when librarianFlag.StartsWith("extract:", StringComparison.InvariantCultureIgnoreCase):
+						_ = Program.currentConfig!.Properties.Lib.AdditionalOptions.Add($"{flag}");
+						break;
+					case var _ when librarianFlag.StartsWith("list", StringComparison.InvariantCultureIgnoreCase):
+						break; // Ignoring as there is really no reason this would ever be in an IDE project file
+					case var _ when librarianFlag.Equals("convert", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when librarianFlag.StartsWith("debugtype:", StringComparison.InvariantCultureIgnoreCase):
+					case var _ when librarianFlag.Equals("link50compat", StringComparison.InvariantCultureIgnoreCase):
+						break; // Ignored because they no longer exist in VS 2015 and later
+					default:
+						throw Program.ThrowInvalidFlag("lib.exe", flag, lineNumber);
 				}
-				else
-					_ = Program.currentConfig!.Properties.Lib.AdditionalDependencies.Add(flag);
 			}
+			else
+				_ = Program.currentConfig!.Properties.Lib.AdditionalDependencies.Add($"{flag}");
+		}
 		// This is being done like this because SuppressStartupBanner defaults to true
 		if (Program.currentFile is null && !hadNoLogo)
 			Program.currentConfig!.Properties.Lib.SuppressStartupBanner = false;
@@ -1305,30 +1317,33 @@ static class Program
 	/// <summary>
 	/// Process a line for the resource compiler.
 	/// </summary>
-	/// <param name="line">The contents of the line.</param>
+	/// <param name="resourceFlags">The contents of the line.</param>
 	/// <param name="lineNumber">The line number of the line.</param>
-	static void ProcessRC(string line, int lineNumber)
+	static void ProcessRC(ReadOnlySpan<char> resourceFlags, int lineNumber)
 	{
-		string[] resourceFlags = line[(line.Contains("BASE") ? 15 : 10)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-		int numResourceFlags = resourceFlags.Length;
+		resourceFlags = resourceFlags[(resourceFlags.Contains("BASE", StringComparison.InvariantCulture) ? 15 : 10)..];
+		int spaces = resourceFlags.Count(' ');
+		Span<Range> ranges = stackalloc Range[spaces + 1];
+		int numResourceFlags = resourceFlags.Split(ranges, ' ', StringSplitOptions.RemoveEmptyEntries);
 		for (int i = 0; i < numResourceFlags; ++i)
 		{
-			var resourceFlag = resourceFlags[i].AsSpan();
+			var resourceFlag = resourceFlags[ranges[i]];
 			if (resourceFlag[0] is '/' or '-')
 			{
 				resourceFlag = resourceFlag[1..];
 				switch (resourceFlag)
 				{
 					case var _ when resourceFlag.StartsWith("c", StringComparison.InvariantCultureIgnoreCase):
-						Program.multipleClCompile.AdditionalOptionsAdd($"{resourceFlag}{(resourceFlag.Length == 1 ? "" : resourceFlags[++i])}");
+						Program.multipleClCompile.AdditionalOptionsAdd($"{resourceFlag}{(resourceFlag.Length == 1 ? "" :
+							resourceFlags[ranges[++i]])}");
 						break;
 					case var _ when resourceFlag.StartsWith("d", StringComparison.InvariantCultureIgnoreCase):
 						Program.multipleResourceCompile.PreprocessorDefinitionsAdd($"{(resourceFlag.Length > 1 ? resourceFlag[1..] :
-							resourceFlags[++i]).Trim('"')}");
+							resourceFlags[ranges[++i]]).Trim('"')}");
 						break;
 					case var _ when resourceFlag.StartsWith("fo", StringComparison.InvariantCultureIgnoreCase):
 					{
-						var filename = (resourceFlag.Length > 2 ? resourceFlag[2..] : resourceFlags[++i]).Trim('"');
+						var filename = (resourceFlag.Length > 2 ? resourceFlag[2..] : resourceFlags[ranges[++i]]).Trim('"');
 						// Ignoring if the filename was $(IntDir)%(Filename).res, as this is the default
 						if (filename is not "$(IntDir)%(Filename).res")
 							Program.multipleResourceCompile.ResourceOutputFileName = $"{filename}";
@@ -1336,11 +1351,11 @@ static class Program
 					}
 					case var _ when resourceFlag.StartsWith("i", StringComparison.InvariantCultureIgnoreCase):
 						Program.multipleResourceCompile.AdditionalIncludeDirectoriesAdd($"{(resourceFlag.Length > 1 ? resourceFlag[1..] :
-							resourceFlags[++i]).Trim('"')}");
+							resourceFlags[ranges[++i]]).Trim('"')}");
 						break;
 					case var _ when resourceFlag.StartsWith("l", StringComparison.InvariantCultureIgnoreCase):
 					{
-						var culture = resourceFlag.Length > 1 ? resourceFlag[1..] : resourceFlags[++i];
+						var culture = resourceFlag.Length > 1 ? resourceFlag[1..] : resourceFlags[ranges[++i]];
 						if (culture.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
 							culture = culture[2..];
 						int cultureNum = int.Parse(culture, NumberStyles.HexNumber);
@@ -1356,7 +1371,7 @@ static class Program
 						break;
 					case var _ when resourceFlag.StartsWith("u", StringComparison.InvariantCultureIgnoreCase):
 						Program.multipleResourceCompile.UndefinePreprocessorDefinitionsAdd($"{(resourceFlag.Length > 1 ? resourceFlag[1..] :
-							resourceFlags[++i]).Trim('"')}");
+							resourceFlags[ranges[++i]]).Trim('"')}");
 						break;
 					case var _ when resourceFlag.Equals("v", StringComparison.InvariantCultureIgnoreCase):
 						Program.multipleResourceCompile.ShowProgress = true;
@@ -1508,33 +1523,32 @@ static class Program
 						Program.currentConfig = Program.projectConfigurations[configuration];
 						if (Program.currentFile is null)
 						{
-							Program.multipleClCompile.Objects = new()
-							{
+							Program.multipleClCompile.Objects =
+							[
 								Program.currentConfig.Properties.ClCompile
-							};
-							Program.multipleResourceCompile.Objects = new()
-							{
+							];
+							Program.multipleResourceCompile.Objects =
+							[
 								Program.currentConfig.Properties.ResourceCompile
-							};
+							];
 						}
 						else
 						{
-							Program.multipleClCompile.Objects = new()
-							{
+							Program.multipleClCompile.Objects =
+							[
 								(Program.currentFile.Configurations[configuration] as ClCompile)!
-							};
-							Program.multipleResourceCompile.Objects = new()
-							{
+							];
+							Program.multipleResourceCompile.Objects =
+							[
 								(Program.currentFile.Configurations[configuration] as ResourceCompile)!
-							};
+							];
 						}
 						break;
 					}
 					case var _ when line.StartsWith("!ENDIF", StringComparison.InvariantCulture) && Program.currentFile is not null:
 						// This is the end of a conditional configuration block
-						Program.multipleClCompile.Objects = Program.currentFile.Configurations.Values.OfType<ClCompile>().ToList();
-						Program.multipleResourceCompile.Objects =
-							Program.currentFile.Configurations.Values.OfType<ResourceCompile>().ToList();
+						Program.multipleClCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ClCompile>()];
+						Program.multipleResourceCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ResourceCompile>()];
 						break;
 					case { Length: > 7 } when line.StartsWith("# PROP", StringComparison.InvariantCulture):
 						// General properties for the project
@@ -1599,9 +1613,14 @@ static class Program
 					{
 						// Process the actual Custom Build Step, the line without a tab is the one that contains the output filename
 						int colon = line.IndexOf(" : ");
-						if (line[colon - 1] == '"')
-							--colon;
-						Program.currentConfig!.Properties.CustomBuildStep.Outputs = line[1..colon];
+						// Ideally, this should never happen, but in case the build step line happens to not be in the proper format,
+						// it will be skipped over as irrelevant
+						if (colon > 0)
+						{
+							if (line[colon - 1] == '"')
+								--colon;
+							Program.currentConfig!.Properties.CustomBuildStep.Outputs = line[1..colon];
+						}
 						break;
 					}
 					case "# End Custom Build":
@@ -1658,9 +1677,9 @@ static class Program
 						};
 						foreach (var config in Program.currentFile.Configurations.Values)
 							config.Filter = currentFilter;
-						Program.multipleClCompile.Objects = Program.currentFile.Configurations.Values.OfType<ClCompile>().ToList();
+						Program.multipleClCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ClCompile>()];
 						Program.multipleResourceCompile.Objects =
-							Program.currentFile.Configurations.Values.OfType<ResourceCompile>().ToList();
+							[.. Program.currentFile.Configurations.Values.OfType<ResourceCompile>()];
 						break;
 					}
 					case "# End Source File":

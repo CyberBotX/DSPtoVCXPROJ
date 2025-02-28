@@ -7,12 +7,10 @@ namespace DSPtoVCXPROJ;
 /// filter in the IDE. This encompasses both the general filters, which contain the extensions, as well as being used on the objects
 /// themselves to say which filter they are contained within.
 /// </summary>
-class Filter
+class Filter(string include)
 {
-	public string Include { get; }
+	public string Include { get; } = include;
 	public string? Extensions { get; set; }
-
-	public Filter(string include) => this.Include = include;
 
 	/// <summary>
 	/// Gets the block as an <see cref="XElement" />.

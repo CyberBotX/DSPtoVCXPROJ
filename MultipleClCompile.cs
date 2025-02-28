@@ -5,7 +5,7 @@ namespace DSPtoVCXPROJ;
 /// </summary>
 class MultipleClCompile
 {
-	public List<ClCompile> Objects { get; set; } = new();
+	public List<ClCompile> Objects { get; set; } = [];
 
 	public bool? ExcludedFromBuild
 	{

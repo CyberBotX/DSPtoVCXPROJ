@@ -6,18 +6,11 @@ namespace DSPtoVCXPROJ;
 /// The <see cref="ProjectConfiguration" /> block contains a project configuration and platform, as it cannot be assumed that a project
 /// only targets Win32 and only had Debug and Release configurations.
 /// </summary>
-class ProjectConfiguration
+class ProjectConfiguration(string configuration, string platform)
 {
-	public string Configuration { get; }
-	public string Platform { get; }
-	public ConfigurationProperties Properties { get; }
-
-	public ProjectConfiguration(string configuration, string platform)
-	{
-		this.Configuration = configuration;
-		this.Platform = platform;
-		this.Properties = new($"'$(Configuration)|$(Platform)'=='{configuration}|{platform}'");
-	}
+	public string Configuration { get; } = configuration;
+	public string Platform { get; } = platform;
+	public ConfigurationProperties Properties { get; } = new($"'$(Configuration)|$(Platform)'=='{configuration}|{platform}'");
 
 	/// <summary>
 	/// Gets the block as an <see cref="XElement" />.

@@ -8,12 +8,10 @@ namespace DSPtoVCXPROJ;
 /// objects, the filename and filter are optional so they can be unused on project-wide objects. It is also meant for any files in the
 /// project that don't have a specific type.
 /// </summary>
-class None
+class None(string? include = null)
 {
-	public string? Include { get; }
+	public string? Include { get; } = include;
 	public Filter? Filter { get; set; }
-
-	public None(string? include = null) => this.Include = include;
 
 	/// <summary>
 	/// Gets the block as an <see cref="XElement" />.

@@ -1,6 +1,6 @@
 Primary repository on [GitHub](https://github.com/CyberBotX/DSPtoVCXPROJ).
 
-[.NET 7.0]: https://dotnet.microsoft.com/en-us/download/dotnet/7.0
+[.NET 8.0]: https://dotnet.microsoft.com/en-us/download/dotnet/8.0
 
 # DSPtoVCXPROJ
 
@@ -34,10 +34,10 @@ files is not done.
 
 ## How to use it?
 
-This application is a .NET 7.0 C# program. If you want to build it from the
+This application is a .NET 8.0 C# program. If you want to build it from the
 source code, you will need to use Visual Studio 2022 and make sure you have the
-[.NET 7.0 SDK][.NET 7.0] installed. If you just want to run the pre-built
-binary, you will need the [.NET 7.0 runtime][.NET 7.0].
+[.NET 8.0 SDK][.NET 8.0] installed. If you just want to run the pre-built
+binary, you will need the [.NET 8.0 runtime][.NET 8.0].
 
 The application is a simple command line program. It takes a single argument,
 the path to the `.dsp` project file you wish to convert. The resulting
@@ -75,7 +75,7 @@ ways:
 ```
 The MIT License (MIT)
 
-Copyright (c) 2023 Naram "CyberBotX" Qashat
+Copyright (c) 2023-2025 Naram "CyberBotX" Qashat
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

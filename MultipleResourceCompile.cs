@@ -5,7 +5,7 @@ namespace DSPtoVCXPROJ;
 /// </summary>
 class MultipleResourceCompile
 {
-	public List<ResourceCompile> Objects { get; set; } = new();
+	public List<ResourceCompile> Objects { get; set; } = [];
 
 	public void PreprocessorDefinitionsAdd(string value)
 	{
