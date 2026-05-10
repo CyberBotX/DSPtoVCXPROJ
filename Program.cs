@@ -1125,6 +1125,7 @@ static class Program
 						break;
 					case { Length: > 11 } when linkFlag.StartsWith("defaultlib:", StringComparison.InvariantCultureIgnoreCase):
 					case { Length: > 7 } when linkFlag.StartsWith("export:", StringComparison.InvariantCultureIgnoreCase):
+					case { Length: > 7 } when linkFlag.StartsWith("ignore:", StringComparison.InvariantCultureIgnoreCase):
 						_ = Program.currentConfig!.Properties.Link.AdditionalOptions.Add($"{flag}");
 						break;
 					case var _ when linkFlag.Equals("dll", StringComparison.InvariantCultureIgnoreCase):
