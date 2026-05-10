@@ -1,6 +1,6 @@
 Primary repository on [GitHub](https://github.com/CyberBotX/DSPtoVCXPROJ).
 
-[.NET 8.0]: https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+[.NET 10.0]: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
 # DSPtoVCXPROJ
 
@@ -34,10 +34,11 @@ files is not done.
 
 ## How to use it?
 
-This application is a .NET 8.0 C# program. If you want to build it from the
-source code, you will need to use Visual Studio 2022 and make sure you have the
-[.NET 8.0 SDK][.NET 8.0] installed. If you just want to run the pre-built
-binary, you will need the [.NET 8.0 runtime][.NET 8.0].
+This application is a .NET 10.0 C# program. If you want to build it from the
+source code, you will need to use either at least Visual Studio 2026 or the
+dotnet command line tool, and make sure you have the [.NET 10.0 SDK][.NET 10.0]
+installed. If you just want to run the pre-built binary, you will need the
+[.NET 10.0 runtime][.NET 10.0].
 
 The application is a simple command line program. It takes a single argument,
 the path to the `.dsp` project file you wish to convert. The resulting
@@ -55,7 +56,7 @@ will encounter something it fails on.
 
 To try to prevent failures, I've utilized the old MSDN documentation for Visual
 Studio 6.0, the current Microsoft Learn documentation for Visual Studio (which
-covers, 2015, 2017, 2019 and 2022, as of this writing in August of 2023), as
+covers, 2015, 2017, 2019, 2022 and 2026, as of this writing in May of 2026), as
 well as the help output of the various programs from both Visual Studio 6.0 and
 Visual Studio 2022. In some cases, there has been conflicting documentation,
 such as the help output not listing a flag that the MSDN documentation lists, or
@@ -75,7 +76,7 @@ ways:
 ```
 The MIT License (MIT)
 
-Copyright (c) 2023-2025 Naram "CyberBotX" Qashat
+Copyright (c) 2023-2026 Naram "CyberBotX" Qashat
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
