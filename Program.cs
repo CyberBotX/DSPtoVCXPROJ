@@ -262,6 +262,7 @@ static class Program
 	static Filter? currentFilter = null;
 	static readonly MultipleClCompile multipleClCompile = new();
 	static readonly MultipleResourceCompile multipleResourceCompile = new();
+	static readonly MultipleAsm multipleAsm = new();
 	static readonly List<SourceFile> files = [];
 	static SourceFile? currentFile = null;
 
@@ -320,13 +321,17 @@ static class Program
 				}
 				break;
 			case "Exclude_From_Build":
-				Program.multipleClCompile.ExcludedFromBuild = int.Parse(props3, CultureInfo.InvariantCulture) switch
+			{
+				bool excluded = int.Parse(props3, CultureInfo.InvariantCulture) switch
 				{
 					0 => false,
 					1 => true,
 					_ => Program.ThrowInvalidArgument<bool>("Exclude_From_Build", props3, lineNumber)
 				};
+				Program.multipleClCompile.ExcludedFromBuild = excluded;
+				Program.multipleAsm.ExcludedFromBuild = excluded;
 				break;
+			}
 		}
 	}
 
@@ -1453,6 +1458,7 @@ static class Program
 		filtersRootXML.Add(filtersItemGroup);
 		Program.GetFiles<ClCompile>(rootXML, filtersRootXML, Program.files);
 		Program.GetFiles<None>(rootXML, filtersRootXML, Program.files);
+		Program.GetFiles<Asm>(rootXML, filtersRootXML, Program.files);
 		Program.GetFiles<ClInclude>(rootXML, filtersRootXML, Program.files);
 		Program.GetFiles<ResourceCompile>(rootXML, filtersRootXML, Program.files);
 		Program.GetFiles<Image>(rootXML, filtersRootXML, Program.files);
@@ -1535,14 +1541,12 @@ static class Program
 						}
 						else
 						{
-							Program.multipleClCompile.Objects =
-							[
-								(Program.currentFile.Configurations[configuration] as ClCompile)!
-							];
-							Program.multipleResourceCompile.Objects =
-							[
-								(Program.currentFile.Configurations[configuration] as ResourceCompile)!
-							];
+							// A file is not necessarily a C/C++ or resource file (it could be a header, assembly file, etc.), so only use the
+							// configuration's object if it is actually of the expected type.
+							_ = Program.currentFile.Configurations.TryGetValue(configuration, out var fileConfig);
+							Program.multipleClCompile.Objects = fileConfig is ClCompile clCompile ? [clCompile] : [];
+							Program.multipleResourceCompile.Objects = fileConfig is ResourceCompile resourceCompile ? [resourceCompile] : [];
+							Program.multipleAsm.Objects = fileConfig is Asm asm ? [asm] : [];
 						}
 						break;
 					}
@@ -1550,6 +1554,7 @@ static class Program
 						// This is the end of a conditional configuration block
 						Program.multipleClCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ClCompile>()];
 						Program.multipleResourceCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ResourceCompile>()];
+						Program.multipleAsm.Objects = [.. Program.currentFile.Configurations.Values.OfType<Asm>()];
 						break;
 					case { Length: > 7 } when line.StartsWith("# PROP", StringComparison.InvariantCulture):
 						// General properties for the project
@@ -1673,6 +1678,8 @@ static class Program
 									var _ when extension.Equals(".rc", StringComparison.InvariantCultureIgnoreCase) =>
 										new ResourceCompile(filename, v.Properties.Condition),
 									var _ when extension.Equals(".txt", StringComparison.InvariantCultureIgnoreCase) => new Text(filename),
+									var _ when extension.Equals(".asm", StringComparison.InvariantCultureIgnoreCase) =>
+										new Asm(filename, v.Properties.Condition),
 									_ => new None(filename)
 								})
 						};
@@ -1681,6 +1688,7 @@ static class Program
 						Program.multipleClCompile.Objects = [.. Program.currentFile.Configurations.Values.OfType<ClCompile>()];
 						Program.multipleResourceCompile.Objects =
 							[.. Program.currentFile.Configurations.Values.OfType<ResourceCompile>()];
+						Program.multipleAsm.Objects = [.. Program.currentFile.Configurations.Values.OfType<Asm>()];
 						break;
 					}
 					case "# End Source File":
